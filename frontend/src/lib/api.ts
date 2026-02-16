@@ -21,10 +21,31 @@ class ApiError extends Error {
   }
 }
 
+function extractErrorMessage(detail: unknown, fallback: string): string {
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0] as { msg?: unknown } | unknown;
+    if (typeof first === "object" && first && "msg" in first) {
+      const msg = (first as { msg?: unknown }).msg;
+      if (typeof msg === "string" && msg.trim()) {
+        return msg;
+      }
+    }
+  }
+
+  return fallback;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    const message = errorBody.detail || `API error: ${response.status}`;
+    const message = extractErrorMessage(
+      (errorBody as { detail?: unknown }).detail,
+      `API error: ${response.status}`
+    );
     throw new ApiError(message, response.status);
   }
   if (response.status === 204) {
